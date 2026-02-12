@@ -1,0 +1,69 @@
+import { create } from 'zustand'
+
+export const useGameStore = create((set, get) => ({
+    level: 0,
+    cash: 1000,
+    inventory: 0,
+    productionCapacity: 1000,
+
+    // Cost Data
+    costs: {
+        fixed: 100,
+        variablePerUnit: 0.20,
+        stepFixed: 50,
+        unitsPerStep: 50,
+        semiFixedBase: 20,
+        semiVarRate: 0.05
+    },
+
+    // Game State & Stats
+    score: 0,
+    mistakes: 0,
+    feedback: null, // { type: 'success' | 'error', message: '' }
+    phaseStats: {}, // { 1: { mistakes: 0, time: 0, score: 0 }, ... }
+
+    // Actions
+    setLevel: (level) => set({ level }),
+    nextLevel: () => set((state) => ({ level: state.level + 1 })),
+
+    addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
+
+    addScore: (points) => set((state) => ({ score: state.score + points })),
+
+    recordMistake: () => set((state) => {
+        const currentPhase = state.level;
+        const currentStats = state.phaseStats[currentPhase] || { mistakes: 0, score: 0 };
+        return {
+            mistakes: state.mistakes + 1,
+            phaseStats: {
+                ...state.phaseStats,
+                [currentPhase]: { ...currentStats, mistakes: currentStats.mistakes + 1 }
+            }
+        };
+    }),
+
+    setFeedback: (feedback) => set({ feedback }),
+    clearFeedback: () => set({ feedback: null }),
+
+    // Cost Calculation Utilities
+    calculateTotalCost: (units) => {
+        const { costs } = get()
+        const fixed = costs.fixed
+        const variable = units * costs.variablePerUnit
+        const steps = Math.ceil(units / costs.unitsPerStep)
+        const stepFixedTotal = steps * costs.stepFixed
+        const semiVariable = costs.semiFixedBase + (units > 0 ? costs.semiVarRate * 8 : 0) // Simplified semi-var for now
+
+        return {
+            fixed,
+            variable,
+            stepFixed: stepFixedTotal,
+            semiVariable,
+            total: fixed + variable + stepFixedTotal + semiVariable
+        }
+    },
+
+    calculateMarginalCostPerUnit: () => {
+        return get().costs.variablePerUnit
+    }
+}))
