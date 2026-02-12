@@ -26,8 +26,21 @@ ChartJS.register(
     Filler
 )
 
-export function Level4() {
-    const { nextLevel } = useGameStore()
+const SCENARIOS = [
+    {
+        title: 'BEP 1: The Standard',
+        targetGoal: 'Find the Break-Even Point where Total Revenue meets Total Cost.',
+        fixedRange: [2000, 8000], priceRange: [30, 100], varRange: [10, 40]
+    },
+    {
+        title: 'BEP 2: Margin of Safety',
+        targetGoal: 'Sales dropped to 400 units. Adjust price or costs to stay profitable!',
+        fixedRange: [2000, 8000], priceRange: [30, 100], varRange: [10, 40]
+    }
+]
+
+export function Level4({ onComplete }) {
+    const [currentScenario, setCurrentScenario] = useState(0)
     const [fixedCost, setFixedCost] = useState(6000)
     const [variableCost, setVariableCost] = useState(20)
     const [price, setPrice] = useState(50)
@@ -35,7 +48,8 @@ export function Level4() {
     const contribution = price - variableCost
     const bepUnits = contribution > 0 ? Math.ceil(fixedCost / contribution) : 0
 
-    const [message, setMessage] = useState('AGENT: Use the haptics to find your Break-Even Point. Can we lower the risk or is it game over?')
+    const scenario = SCENARIOS[currentScenario]
+    const [message, setMessage] = useState(scenario.targetGoal)
 
     const chartData = useMemo(() => {
         const labels = Array.from({ length: 11 }, (_, i) => i * 100)
@@ -198,14 +212,22 @@ export function Level4() {
                 </div>
             </div>
 
-            <div className="lg:col-span-12 flex justify-center py-12">
+            <div className="lg:col-span-12 flex flex-col items-center gap-6 py-12">
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={nextLevel}
+                    onClick={() => {
+                        if (currentScenario < SCENARIOS.length - 1) {
+                            setCurrentScenario(currentScenario + 1)
+                            setMessage(SCENARIOS[currentScenario + 1].targetGoal)
+                            // Reset to defaults or keeping user sliders is fine
+                        } else {
+                            onComplete()
+                        }
+                    }}
                     className="neo-button bg-electric-purple text-white border-white px-24 py-8 text-3xl italic font-black"
                 >
-                    FINALIZE MISSION →
+                    {currentScenario < SCENARIOS.length - 1 ? 'NEXT TARGET →' : 'FINALIZE MISSION →'}
                 </motion.button>
             </div>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { PhaseSummary } from './components/PhaseSummary'
 import { GameSummary } from './components/GameSummary'
-import { sounds, playSound, toggleMute } from './utils/sounds'
+import { initAudio, sounds, playSound, toggleMute } from './utils/sounds'
 import { useGameStore } from './store/useGameStore'
 import {
     Home,
@@ -52,6 +52,13 @@ function App() {
 
     const advanceLevel = () => {
         setShowPhaseSummary(false)
+        playSound('click')
+        nextLevel()
+    }
+
+    const startMission = () => {
+        initAudio()
+        playSound('levelUp')
         nextLevel()
     }
 
@@ -84,7 +91,7 @@ function App() {
                     </div>
 
                     <button
-                        onClick={nextLevel}
+                        onClick={startMission}
                         className="neo-button bg-electric-purple border-cyber-lime hover:bg-cyber-lime hover:text-midnight transition-colors"
                     >
                         Launch Mission

@@ -3,11 +3,29 @@ import { useGameStore } from '../store/useGameStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CloudRain, Zap, TrendingDown, Target, ShieldCheck, Flame, Cpu, User } from 'lucide-react'
 
-export function Level5() {
-    const { cash } = useGameStore()
+const SCENARIOS = [
+    {
+        title: 'THE MARKET STORM',
+        desc: 'A recession is hitting. Sales will drop 50%. Pick your survival model.',
+        salesDrop: 0.50,
+        manualMsg: 'Hustle Core was the move. Flexible flavor meant you could downscale instantly.',
+        autoMsg: 'The Auto-Stacker build had too much fixed cost baggage. You couldn\'t cut the burn fast enough.'
+    },
+    {
+        title: 'THE BOOM TIMES',
+        desc: 'The market is peaking! Volume will double. Which model scales better?',
+        salesDrop: -1.0, // Double sales
+        manualMsg: 'Scaling labor was expensive. You missed out on massive profits because of high variable costs.',
+        autoMsg: 'AUTOMATION W. Your fixed costs stayed low while your volume exploded. High leverage win!'
+    }
+]
+
+export function Level5({ onComplete }) {
+    const { cash, recordMistake } = useGameStore()
+    const [currentScenario, setCurrentScenario] = useState(0)
+    const scenario = SCENARIOS[currentScenario]
     const [model, setModel] = useState(null)
     const [gameState, setGameState] = useState('decision')
-
     const models = {
         manual: {
             name: 'HUSTLE CORE',
@@ -32,7 +50,7 @@ export function Level5() {
         setGameState('simulating')
 
         setTimeout(() => {
-            const dropAmount = 0.50
+            const dropAmount = scenario.salesDrop
             const originalSales = 400
             const currentSales = originalSales * (1 - dropAmount)
             const price = 50
@@ -43,10 +61,13 @@ export function Level5() {
             const contribution = revenue - totalVarCost
             const profit = contribution - config.fixed
 
+            const survived = profit > -500 // Adjust threshold
+            if (!survived) recordMistake()
+
             setStormResult({
                 sales: currentSales,
                 profit,
-                survived: profit > -1000
+                survived
             })
             setGameState('result')
         }, 3000)
@@ -56,8 +77,8 @@ export function Level5() {
         <div className="max-w-6xl mx-auto space-y-12">
             <div className="bento-card border-none bg-hot-pink/10 ring-1 ring-hot-pink/20 py-12 flex flex-col items-center text-center">
                 <Flame className="text-hot-pink mb-6 animate-pulse" size={64} />
-                <h2 className="text-5xl lg:text-7xl font-black italic text-white leading-none">THE MARKET STORM</h2>
-                <p className="text-xl text-gray-400 uppercase tracking-[0.2em] mt-4 font-bold">A recession is hitting. Sales will drop 50%. Pick your survival model.</p>
+                <h2 className="text-5xl lg:text-7xl font-black italic text-white leading-none tracking-tighter uppercase">{scenario.title}</h2>
+                <p className="text-xl text-gray-400 uppercase tracking-[0.2em] mt-4 font-bold">{scenario.desc}</p>
             </div>
 
             <AnimatePresence mode="wait">
@@ -156,23 +177,30 @@ export function Level5() {
                             </div>
 
                             <div className="mt-12 max-w-3xl mx-auto p-12 bg-white text-midnight neo-brutal border-midnight text-xl font-bold leading-tight uppercase italic">
-                                {model === 'automated'
-                                    ? 'The Auto-Stacker build had too much fixed cost baggage. When the market dipped, you couldn\'t cut the burn fast enough. Operating Leverage turned against you like a boss fight you weren\'t ready for.'
-                                    : 'Hustle Core was the move. Flexible labor costs meant you could downscale instantly. Your loss was manageable because you weren’t tied down by heavy automation debt. Dynamic scaling for the win.'}
+                                {model === 'automated' ? scenario.autoMsg : scenario.manualMsg}
                             </div>
-                        </div>
 
-                        <div className="flex justify-center">
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="neo-button bg-cyber-lime text-midnight border-midnight text-2xl font-black italic px-24 py-10"
-                            >
-                                Finalize Career →
-                            </button>
+                            <div className="flex justify-center">
+                                <button
+                                    onClick={() => {
+                                        if (currentScenario < SCENARIOS.length - 1) {
+                                            setCurrentScenario(currentScenario + 1)
+                                            setGameState('decision')
+                                            setModel(null)
+                                            setStormResult(null)
+                                        } else {
+                                            onComplete()
+                                        }
+                                    }}
+                                    className="neo-button bg-cyber-lime text-midnight border-midnight text-2xl font-black italic px-24 py-10"
+                                >
+                                    {currentScenario < SCENARIOS.length - 1 ? 'NEXT EVENT →' : 'Finalize Career →'}
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     )
 }

@@ -79,16 +79,36 @@ const BUCKET_INFO = {
     }
 }
 
-export function Level1() {
-    const { nextLevel } = useGameStore()
+const SCENARIOS = [
+    {
+        title: 'Phase 1.1: The Basics',
+        message: 'Master the core. Drag costs into their primary buckets.',
+        items: COST_ITEMS.filter(i => ['fixed', 'variable'].includes(i.type))
+    },
+    {
+        title: 'Phase 1.2: Capacity Thresholds',
+        message: 'Operations are scaling. Identify Step-Fixed costs that jump at capacity.',
+        items: COST_ITEMS.filter(i => i.type === 'step-fixed')
+    },
+    {
+        title: 'Phase 1.3: Mixed Motives',
+        message: 'The final test. Identify Semi-Variable costs (Base + Usage).',
+        items: COST_ITEMS.filter(i => i.type === 'semi-variable')
+    }
+]
+
+export function Level1({ onComplete }) {
+    const { recordMistake } = useGameStore()
+    const [currentScenario, setCurrentScenario] = useState(0)
     const [buckets, setBuckets] = useState({
         fixed: [],
         variable: [],
         'step-fixed': [],
         'semi-variable': []
     })
-    const [items, setItems] = useState(COST_ITEMS)
-    const [message, setMessage] = useState('Read each cost description carefully, then drag it into the correct bucket!')
+    const scenario = SCENARIOS[currentScenario]
+    const [items, setItems] = useState(scenario.items)
+    const [message, setMessage] = useState(scenario.message)
     const [completed, setCompleted] = useState(false)
     const [wrongAttempt, setWrongAttempt] = useState(null)
 
@@ -104,23 +124,40 @@ export function Level1() {
                 ...prev,
                 [bucketId]: [...prev[bucketId], item]
             }))
-            setItems(prev => prev.filter(i => i.id !== itemId))
-            setMessage(`✅ Correct! "${item.name}" is a ${BUCKET_INFO[bucketId].label.toLowerCase().replace(' costs', '')} cost.`)
+            const remainingItems = items.filter(i => i.id !== itemId)
+            setItems(remainingItems)
+            setMessage(`✅ Correct! "${item.name}" belongs there.`)
             setWrongAttempt(null)
 
-            if (items.length === 1) {
-                setCompleted(true)
-                setMessage('🎉 All costs classified correctly! You\'re ready for Phase 2!')
+            if (remainingItems.length === 0) {
+                if (currentScenario < SCENARIOS.length - 1) {
+                    setTimeout(() => {
+                        const next = currentScenario + 1
+                        setCurrentScenario(next)
+                        setItems(SCENARIOS[next].items)
+                        setMessage(SCENARIOS[next].message)
+                        setBuckets({
+                            fixed: [],
+                            variable: [],
+                            'step-fixed': [],
+                            'semi-variable': []
+                        })
+                    }, 1500)
+                } else {
+                    setCompleted(true)
+                    setMessage('🎉 All cost types mastered! You are a Classification King.')
+                }
             }
         } else {
+            recordMistake()
             setWrongAttempt(itemId)
             const hint = bucketId === 'fixed'
-                ? 'Fixed costs don\'t change with production. Re-read the description — does this cost change when you make more cups?'
+                ? 'Fixed costs don\'t change with volume. Check the description again.'
                 : bucketId === 'variable'
-                    ? 'Variable costs change per unit. Check if this cost has a fixed component or only changes with each cup.'
+                    ? 'Variable costs change per unit. Is this cost strictly per cup?'
                     : bucketId === 'step-fixed'
-                        ? 'Step-fixed costs are fixed within a capacity range, then jump. Does this cost have a threshold?'
-                        : 'Semi-variable costs have BOTH a fixed base AND a variable component. Does this cost have two parts?'
+                        ? 'Step-fixed costs jump at thresholds (e.g., every 50 units).'
+                        : 'Semi-variable costs have a fixed base PLUS a variable rate.'
             setMessage(`❌ Not quite! ${hint}`)
         }
     }
@@ -205,7 +242,7 @@ export function Level1() {
                     className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50"
                 >
                     <button
-                        onClick={nextLevel}
+                        onClick={onComplete}
                         className="neo-button bg-cyber-lime text-midnight border-white text-xl"
                     >
                         NEXT PHASE →

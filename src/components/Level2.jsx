@@ -3,30 +3,67 @@ import { useGameStore } from '../store/useGameStore'
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, DollarSign, Info, Eye } from 'lucide-react'
 
-export function Level2() {
-    const { nextLevel, addCash } = useGameStore()
-    const [scenario] = useState({
-        title: 'The School Trip Special',
-        description: 'A local school wants 100 cups of lemonade for a field trip. They can only pay $0.60 per cup.',
-        normalPrice: 1.50,
+const SCENARIOS = [
+    {
+        title: 'The Hustle: Trip 101',
+        description: 'A local school wants 100 cups for a trip. They offer $0.60/cup. Variable cost is $0.20.',
+        units: 100, price: 0.60, varCost: 0.20,
+        normalPrice: 1.50, // Added back for UI compatibility
         offerPrice: 0.60,
-        units: 100,
-        variableCost: 0.20
-    })
+        variableCost: 0.20,
+        hint: 'As long as price > variable cost, take the deal.'
+    },
+    {
+        title: 'The Lowball: Sus Offer',
+        description: 'A shady vendor wants 50 cups for $0.15/cup. Your cost is $0.20/cup.',
+        units: 50, price: 0.15, varCost: 0.20,
+        normalPrice: 1.50,
+        offerPrice: 0.15,
+        variableCost: 0.20,
+        hint: 'Accepting this means losing $0.05 on every cup. Reject it!'
+    },
+    {
+        title: 'The Constraint: Big Decision',
+        description: 'Two separate orders, but you only have time for ONE. Order A: 100 cups @ $0.40 profit each. Order B: 50 cups @ $0.90 profit each.',
+        units: 50, price: 1.10, varCost: 0.20,
+        normalPrice: 1.50,
+        offerPrice: 1.10,
+        variableCost: 0.20,
+        hint: 'Choose the one with the highest contribution to your bottom line.'
+    }
+]
 
+export function Level2({ onComplete }) {
+    const { addCash, recordMistake } = useGameStore()
+    const [currentScenario, setCurrentScenario] = useState(0)
+    const scenario = SCENARIOS[currentScenario]
     const [decision, setDecision] = useState(null)
-    const [message, setMessage] = useState('AGENT: A customer is lowballing you. They want to pay $0.60. Should we take the bag or nah?')
+    const [message, setMessage] = useState('AGENT: Analyze the request. Does it contribute to profit?')
     const [showExplanation, setShowExplanation] = useState(false)
 
     const handleDecision = (accepted) => {
         setDecision(accepted)
-        if (accepted) {
-            addCash(scenario.units * (scenario.offerPrice - scenario.variableCost))
-            setMessage('W. You covered the variable costs and snatched some extra profit. 💸')
+        const isCorrect = (scenario.price > scenario.varCost) === accepted
+
+        if (isCorrect) {
+            addCash(scenario.units * (scenario.price - scenario.varCost))
+            setMessage('W. You saw the matrix. Profit snatched. 💸')
         } else {
-            setMessage('L. You missed out on profit just because you were worried about "Total Cost".')
+            recordMistake()
+            setMessage('L. You missed the contribution check. Check your math! 📉')
         }
         setShowExplanation(true)
+    }
+
+    const nextScenario = () => {
+        if (currentScenario < SCENARIOS.length - 1) {
+            setCurrentScenario(currentScenario + 1)
+            setDecision(null)
+            setShowExplanation(false)
+            setMessage('Analyze the next request.')
+        } else {
+            onComplete()
+        }
     }
 
     return (
@@ -154,7 +191,7 @@ export function Level2() {
 
                     <div className="mt-12 flex justify-center">
                         <button
-                            onClick={nextLevel}
+                            onClick={onComplete}
                             className="neo-button bg-white text-midnight border-midnight"
                         >
                             NEXT VIBE: THE DUEL →

@@ -3,31 +3,48 @@ import { useGameStore } from '../store/useGameStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Hash, PieChart, Info, ShieldAlert, Sparkles, Sword } from 'lucide-react'
 
-export function Level3() {
-    const { nextLevel } = useGameStore()
+const SCENARIOS = [
+    {
+        title: 'Duel 1: Equilibrium',
+        description: 'Production (1000) = Sales (1000). Both methods should yield same profit.',
+        prod: 1000, sales: 1000, var: 10, fixed: 5000, price: 50,
+        production: 1000, variableCost: 10, fixedOverhead: 5000, sellingPrice: 50 // UI compatibility
+    },
+    {
+        title: 'Duel 2: The Stock Trap',
+        description: 'Production (1000) > Sales (800). Absorption hides fixed costs in inventory.',
+        prod: 1000, sales: 800, var: 10, fixed: 5000, price: 50,
+        production: 1000, variableCost: 10, fixedOverhead: 5000, sellingPrice: 50
+    },
+    {
+        title: 'Duel 3: The Stock Release',
+        description: 'Sales (1200) > Production (1000). Old fixed costs are now hitting the P&L.',
+        prod: 1000, sales: 1200, var: 10, fixed: 5000, price: 50,
+        production: 1000, variableCost: 10, fixedOverhead: 5000, sellingPrice: 50
+    }
+]
+
+export function Level3({ onComplete }) {
+    const { recordMistake } = useGameStore()
+    const [currentScenario, setCurrentScenario] = useState(0)
     const [stage, setStage] = useState('calc')
     const [inputs, setInputs] = useState({ marginalCost: '', absorptionCost: '' })
     const [profitChoice, setProfitChoice] = useState(null)
 
-    const [data] = useState({
-        production: 1000,
-        sales: 800,
-        variableCost: 10.50,
-        fixedOverhead: 5000,
-        sellingPrice: 50.00
-    })
+    const data = SCENARIOS[currentScenario]
+    const fixedRate = data.fixed / data.prod
+    const correctMarginal = data.var
+    const correctAbsorption = data.var + fixedRate
 
-    const fixedRate = data.fixedOverhead / data.production
-    const correctMarginal = data.variableCost
-    const correctAbsorption = data.variableCost + fixedRate
-
-    const [message, setMessage] = useState('AGENT: It’s time to see the matrix. Calculate the unit cost for both methods. Don’t let the fixed costs fwm.')
+    const [message, setMessage] = useState('Analyze the costing methods. One is real, one is a facade.')
 
     const checkCalculations = () => {
-        if (parseFloat(inputs.marginalCost) === correctMarginal && parseFloat(inputs.absorptionCost) === correctAbsorption) {
+        if (Math.abs(parseFloat(inputs.marginalCost) - correctMarginal) < 0.01 &&
+            Math.abs(parseFloat(inputs.absorptionCost) - correctAbsorption) < 0.01) {
             setStage('profit')
             setMessage('SHEESH! You really saw through the absorption smoke screen.')
         } else {
+            recordMistake()
             setMessage('NAH. Your math is mid. Check that fixed overhead allocation again.')
         }
     }
@@ -185,7 +202,7 @@ export function Level3() {
                             </div>
                             <div className="flex justify-center">
                                 <button
-                                    onClick={nextLevel}
+                                    onClick={onComplete}
                                     className="neo-button bg-cyber-lime text-midnight border-white text-3xl italic font-black px-24"
                                 >
                                     CONTINUE MISSION →
