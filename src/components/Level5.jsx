@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { useGameStore } from '../store/useGameStore'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CloudRain, Zap, TrendingDown, Target, ShieldCheck, Flame, Cpu, User } from 'lucide-react'
+import { Globe, Users, Shield, TrendingUp, AlertTriangle, CheckCircle, BarChart3, Rocket, CloudRain, Zap, TrendingDown, Target, ShieldCheck, Flame, Cpu, User } from 'lucide-react'
+import { LevelHeader } from './ui/LevelHeader'
+import { MentorMessage } from './ui/MentorMessage'
 
 const SCENARIOS = [
     {
@@ -74,12 +76,14 @@ export function Level5({ onComplete }) {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12">
-            <div className="bento-card border-none bg-hot-pink/10 ring-1 ring-hot-pink/20 py-12 flex flex-col items-center text-center">
-                <Flame className="text-hot-pink mb-6 animate-pulse" size={64} />
-                <h2 className="text-5xl lg:text-7xl font-black italic text-white leading-none tracking-tighter uppercase">{scenario.title}</h2>
-                <p className="text-xl text-gray-400 uppercase tracking-[0.2em] mt-4 font-bold">{scenario.desc}</p>
-            </div>
+        <div className="space-y-8 pb-32">
+            <LevelHeader
+                icon={Globe}
+                title="Phase 5: Market Shock"
+                subtitle={scenario.title}
+                colorClass="bg-cyber-lime"
+                borderColorClass="border-cyber-lime/20"
+            />
 
             <AnimatePresence mode="wait">
                 {gameState === 'decision' && (
@@ -88,43 +92,69 @@ export function Level5({ onComplete }) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-12"
+                        className="space-y-8"
                     >
-                        {Object.entries(models).map(([key, config]) => (
-                            <motion.div
-                                key={key}
-                                whileHover={{ scale: 1.02 }}
-                                className="bento-card bg-white/5 border-white/10 hover:border-cyber-lime transition-all flex flex-col justify-between"
-                            >
-                                <div className="space-y-8">
-                                    <div className="flex justify-between items-start">
-                                        <div className="p-6 bg-white/5 rounded-[2rem] text-cyber-lime">
-                                            {config.icon}
-                                        </div>
-                                        <h4 className="text-4xl font-black italic text-white tracking-widest">{config.name}</h4>
-                                    </div>
-                                    <p className="text-lg text-gray-400 font-light leading-relaxed">{config.description}</p>
+                        <MentorMessage
+                            message="This is the final test of your business model. High fixed costs are risky in a volatile market. Choose your structure wisely."
+                            type="info"
+                        />
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-6 bg-midnight/50 rounded-3xl border border-white/5">
-                                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest block mb-1">Fixed Cost</span>
-                                            <span className="text-2xl font-black text-white">${config.fixed}</span>
-                                        </div>
-                                        <div className="p-6 bg-midnight/50 rounded-3xl border border-white/5">
-                                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest block mb-1">Variable Cost</span>
-                                            <span className="text-2xl font-black text-white">${config.variable}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div className="bento-card bg-midnight/50 border-white/10 p-12 text-center max-w-4xl mx-auto">
+                            <Rocket className="text-cyber-lime mx-auto mb-6 animate-pulse" size={48} />
+                            <h3 className="text-4xl font-black italic text-white uppercase tracking-tighter mb-4">{scenario.title}</h3>
+                            <p className="text-xl text-gray-400 font-bold leading-relaxed">
+                                {scenario.desc}
+                            </p>
+                        </div>
 
-                                <button
-                                    onClick={() => runSimulation(key)}
-                                    className="neo-button bg-electric-purple text-white border-white mt-12 w-full py-8 text-xl"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {Object.entries(models).map(([key, config]) => (
+                                <motion.div
+                                    key={key}
+                                    whileHover={{ scale: 1.02 }}
+                                    className={`bento-card cursor-pointer group transition-all p-10 flex flex-col justify-between min-h-[450px] ${key === 'automated'
+                                        ? 'bg-electric-purple/10 border-electric-purple/30 hover:bg-electric-purple/20'
+                                        : 'bg-hot-pink/10 border-hot-pink/30 hover:bg-hot-pink/20'
+                                        }`}
+                                    onClick={() => setModel(key)}
                                 >
-                                    EXECUTE MODEL →
-                                </button>
-                            </motion.div>
-                        ))}
+                                    <div className="space-y-8">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Model Architecture</h4>
+                                                <h3 className="text-3xl font-black text-white italic uppercase">{config.name}</h3>
+                                            </div>
+                                            <div className="p-4 bg-white/5 rounded-2xl group-hover:bg-white/10 transition-all">
+                                                {key === 'automated' ? <Cpu size={32} /> : <User size={32} />}
+                                            </div>
+                                        </div>
+
+                                        <p className="text-sm font-bold text-gray-400 leading-relaxed">
+                                            {config.desc}
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-6 bg-midnight/50 rounded-3xl border border-white/5">
+                                                <span className="text-[10px] text-gray-500 font-black uppercase block mb-1">Fixed Cost</span>
+                                                <span className="text-2xl font-black text-white">${config.fixed.toLocaleString()}</span>
+                                            </div>
+                                            <div className="p-6 bg-midnight/50 rounded-3xl border border-white/5">
+                                                <span className="text-[10px] text-gray-500 font-black uppercase block mb-1">Var Cost</span>
+                                                <span className="text-2xl font-black text-white">${config.variable}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); runSimulation(key); }}
+                                        className={`mt-12 w-full py-8 text-2xl font-black italic uppercase tracking-widest rounded-full border-4 border-midnight shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all ${key === 'automated' ? 'bg-electric-purple text-white' : 'bg-hot-pink text-white'
+                                            }`}
+                                    >
+                                        ACTIVATE MODEL →
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </div>
                     </motion.div>
                 )}
 
@@ -154,33 +184,33 @@ export function Level5({ onComplete }) {
                             <div className={`absolute top-0 left-0 w-full h-2 ${stormResult.survived ? 'bg-cyber-lime' : 'bg-hot-pink'}`} />
 
                             <h3 className={`text-7xl font-black italic mb-6 ${stormResult.survived ? 'text-cyber-lime' : 'text-hot-pink'}`}>
-                                {stormResult.survived ? 'YOU SURVIVED' : 'BANKRUPT'}
+                                {stormResult.survived ? 'SYSTEM RESILIENT' : 'MODEL COLLAPSED'}
                             </h3>
 
-                            <p className="text-3xl font-light text-white mb-12">
-                                Net Flow during crash: <span className="font-black italic underline decoration-4 underline-offset-8">${stormResult.profit.toFixed(2)}</span>
+                            <p className="text-3xl font-light text-white mb-12 italic">
+                                Net Performance: <span className="font-black underline decoration-4 underline-offset-8">${stormResult.profit.toLocaleString()}</span>
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
                                 <div className="p-8 bg-midnight/50 rounded-[2rem] border border-white/10">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Sales Shock</p>
-                                    <p className="text-2xl font-black text-white">-50%</p>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Market Volatility</p>
+                                    <p className="text-3xl font-black text-white italic">-50.0%</p>
                                 </div>
                                 <div className="p-8 bg-midnight/50 rounded-[2rem] border border-white/10">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Units Sold</p>
-                                    <p className="text-2xl font-black text-white">{stormResult.sales}</p>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Final Volume</p>
+                                    <p className="text-3xl font-black text-white italic">{stormResult.sales.toLocaleString()}</p>
                                 </div>
                                 <div className="p-8 bg-midnight/50 rounded-[2rem] border border-white/10">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Strategy</p>
-                                    <p className="text-2xl font-black text-white uppercase italic">{model}</p>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Operational Deck</p>
+                                    <p className="text-3xl font-black text-cyber-lime uppercase italic tracking-tighter">{models[model].name}</p>
                                 </div>
                             </div>
 
-                            <div className="mt-12 max-w-3xl mx-auto p-12 bg-white text-midnight neo-brutal border-midnight text-xl font-bold leading-tight uppercase italic">
-                                {model === 'automated' ? scenario.autoMsg : scenario.manualMsg}
+                            <div className="mt-12 max-w-3xl mx-auto p-12 bg-white text-midnight neo-brutal border-midnight text-xl font-black leading-tight uppercase italic text-center">
+                                "{model === 'automated' ? scenario.autoMsg : scenario.manualMsg}"
                             </div>
 
-                            <div className="flex justify-center">
+                            <div className="flex justify-center pt-12">
                                 <button
                                     onClick={() => {
                                         if (currentScenario < SCENARIOS.length - 1) {
@@ -189,18 +219,20 @@ export function Level5({ onComplete }) {
                                             setModel(null)
                                             setStormResult(null)
                                         } else {
+                                            const { addScore } = useGameStore.getState()
+                                            addScore(3000)
                                             onComplete()
                                         }
                                     }}
-                                    className="neo-button bg-cyber-lime text-midnight border-midnight text-2xl font-black italic px-24 py-10"
+                                    className="neo-button bg-cyber-lime text-midnight border-white text-3xl font-black italic px-24 py-10"
                                 >
-                                    {currentScenario < SCENARIOS.length - 1 ? 'NEXT EVENT →' : 'Finalize Career →'}
+                                    {currentScenario < SCENARIOS.length - 1 ? 'NEXT EVENT →' : 'CONCLUDE SIMULATION →'}
                                 </button>
                             </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div >
+        </div>
     )
 }

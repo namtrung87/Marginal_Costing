@@ -32,6 +32,7 @@ export const toggleMute = () => {
     try {
         const isMuted = !Howler._muted
         Howler.mute(isMuted)
+        localStorage.setItem('mom_isMuted', isMuted)
 
         // Ensure BGM plays if unmuted
         if (!isMuted && sounds.bgm.state() === 'loaded' && !sounds.bgm.playing()) {
@@ -45,16 +46,20 @@ export const toggleMute = () => {
     }
 }
 
-// Start BGM on user interaction (to comply with browser autoplay policies)
-// This will be triggered by App.jsx
 export const initAudio = () => {
     try {
+        // Restore mute state
+        const savedMuted = localStorage.getItem('mom_isMuted') === 'true'
+        if (savedMuted) {
+            Howler.mute(true)
+        }
+
         if (sounds.bgm.state() === 'loaded' && !sounds.bgm.playing()) {
             sounds.bgm.play()
         } else if (sounds.bgm.state() === 'unloaded') {
             sounds.bgm.load()
             sounds.bgm.once('load', () => {
-                sounds.bgm.play()
+                if (!Howler._muted) sounds.bgm.play()
             })
         }
     } catch (e) {

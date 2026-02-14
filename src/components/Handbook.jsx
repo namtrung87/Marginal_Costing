@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, X, Info, Target, TrendingUp, ShieldAlert, Zap, Sparkles } from 'lucide-react'
+import { useGameStore } from '../store/useGameStore'
 
 const TOPICS = [
     {
@@ -36,8 +37,19 @@ const TOPICS = [
     }
 ]
 
-export function Handbook({ isOpen, onClose }) {
-    const [activeTopic, setActiveTopic] = useState(TOPICS[0].id)
+export function Handbook({ isOpen, onClose, initialTopic }) {
+    const { clearSuggestion } = useGameStore()
+    const [activeTopic, setActiveTopic] = useState(initialTopic || TOPICS[0].id)
+
+    // Sync activeTopic if initialTopic changes while open
+    useEffect(() => {
+        if (initialTopic) setActiveTopic(initialTopic)
+    }, [initialTopic])
+
+    const handleClose = () => {
+        clearSuggestion()
+        onClose()
+    }
 
     return (
         <AnimatePresence>

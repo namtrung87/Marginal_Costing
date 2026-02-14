@@ -1,204 +1,274 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useGameStore } from '../store/useGameStore'
-import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, DollarSign, Info, Eye } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { TrendingUp, TrendingDown, DollarSign, Info, Eye, Smile, Angry, Handshake, Briefcase } from 'lucide-react'
+import { playSound } from '../utils/sounds'
+import { LevelHeader } from './ui/LevelHeader'
+import { MentorMessage } from './ui/MentorMessage'
 
 const SCENARIOS = [
     {
+        id: 1,
         title: 'The Hustle: Trip 101',
         description: 'A local school wants 100 cups for a trip. They offer $0.60/cup. Variable cost is $0.20.',
-        units: 100, price: 0.60, varCost: 0.20,
-        normalPrice: 1.50, // Added back for UI compatibility
+        units: 100,
         offerPrice: 0.60,
         variableCost: 0.20,
-        hint: 'As long as price > variable cost, take the deal.'
+        normalPrice: 1.50,
+        patienceDecay: 15, // Higher = harder
+        hint: 'As long as price > variable cost ($0.20), any gain is contribution.'
     },
     {
+        id: 2,
         title: 'The Lowball: Sus Offer',
-        description: 'A shady vendor wants 50 cups for $0.15/cup. Your cost is $0.20/cup.',
-        units: 50, price: 0.15, varCost: 0.20,
-        normalPrice: 1.50,
+        description: 'A shady vendor wants 50 cups for $0.15/cup. Your variable cost is $0.20/cup.',
+        units: 50,
         offerPrice: 0.15,
         variableCost: 0.20,
-        hint: 'Accepting this means losing $0.05 on every cup. Reject it!'
-    },
-    {
-        title: 'The Constraint: Big Decision',
-        description: 'Two separate orders, but you only have time for ONE. Order A: 100 cups @ $0.40 profit each. Order B: 50 cups @ $0.90 profit each.',
-        units: 50, price: 1.10, varCost: 0.20,
         normalPrice: 1.50,
-        offerPrice: 1.10,
-        variableCost: 0.20,
-        hint: 'Choose the one with the highest contribution to your bottom line.'
+        patienceDecay: 25,
+        hint: 'This price is below your variable cost. You LOSE money on every cup.'
     }
 ]
 
 export function Level2({ onComplete }) {
     const { addCash, recordMistake } = useGameStore()
-    const [currentScenario, setCurrentScenario] = useState(0)
-    const scenario = SCENARIOS[currentScenario]
-    const [decision, setDecision] = useState(null)
-    const [message, setMessage] = useState('AGENT: Analyze the request. Does it contribute to profit?')
-    const [showExplanation, setShowExplanation] = useState(false)
+    const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0)
+    const scenario = SCENARIOS[currentScenarioIdx]
 
-    const handleDecision = (accepted) => {
-        setDecision(accepted)
-        const isCorrect = (scenario.price > scenario.varCost) === accepted
+    // Negotiation State
+    const [negotiationPrice, setNegotiationPrice] = useState(scenario.offerPrice)
+    const [patience, setPatience] = useState(100)
+    const [gameState, setGameState] = useState('briefing') // 'briefing', 'negotiating', 'result'
+    const [result, setResult] = useState(null) // 'success', 'walked', 'failed'
+    const [message, setMessage] = useState('Analyze the request. Can we squeeze more profit?')
 
-        if (isCorrect) {
-            addCash(scenario.units * (scenario.price - scenario.varCost))
-            setMessage('W. You saw the matrix. Profit snatched. 💸')
-        } else {
-            recordMistake()
-            setMessage('L. You missed the contribution check. Check your math! 📉')
+    const handleNegotiate = (delta) => {
+        const newPrice = Math.max(0, negotiationPrice + delta)
+        setNegotiationPrice(newPrice)
+
+        // Patience logic: increasing price drops patience
+        if (delta > 0) {
+            const decay = (newPrice / scenario.offerPrice) * scenario.patienceDecay
+            setPatience(p => Math.max(0, p - decay))
         }
-        setShowExplanation(true)
+
+        playSound('click')
+    }
+
+    const handleCommit = () => {
+        // Chance of walking away based on patience
+        const walkProbability = (100 - patience) / 100
+        const randomFactor = Math.random()
+
+        if (randomFactor < walkProbability && patience < 80) {
+            setResult('walked')
+            setGameState('result')
+            setMessage("THEY WALKED! You pushed too hard and lost the deal.")
+            playSound('fail')
+            recordMistake('marginal')
+        } else {
+            const isProfitable = negotiationPrice > scenario.variableCost
+            if (isProfitable) {
+                const totalContribution = scenario.units * (negotiationPrice - scenario.variableCost)
+                addCash(totalContribution)
+                setResult('success')
+                setMessage(`DEAL SEALED! Secured $${totalContribution.toFixed(2)} in total contribution.`)
+                playSound('success')
+            } else {
+                setResult('failed')
+                setMessage("DEAL FAILED! You sold below variable cost. You're losing money on every unit.")
+                playSound('fail')
+                recordMistake('marginal')
+            }
+            setGameState('result')
+        }
     }
 
     const nextScenario = () => {
-        if (currentScenario < SCENARIOS.length - 1) {
-            setCurrentScenario(currentScenario + 1)
-            setDecision(null)
-            setShowExplanation(false)
-            setMessage('Analyze the next request.')
+        if (currentScenarioIdx < SCENARIOS.length - 1) {
+            const nextIdx = currentScenarioIdx + 1
+            setCurrentScenarioIdx(nextIdx)
+            setNegotiationPrice(SCENARIOS[nextIdx].offerPrice)
+            setPatience(100)
+            setGameState('briefing')
+            setResult(null)
+            setMessage('Next inquiry incoming...')
         } else {
+            const { addScore } = useGameStore.getState()
+            addScore(800)
             onComplete()
         }
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            <div className="lg:col-span-12">
-                <div className="bento-card bg-cyber-lime/10 border-cyber-lime/20 flex flex-col md:flex-row items-center gap-8">
-                    <div className="text-6xl animate-bounce">🤔</div>
-                    <div>
-                        <h2 className="text-4xl text-cyber-lime italic mb-2">THE SPECIAL ORDER</h2>
-                        <p className="text-lg text-gray-400 capitalize tracking-widest">{message}</p>
+        <div className="space-y-8">
+            <LevelHeader
+                icon={Briefcase}
+                title="Phase 2: Marginal Logic"
+                subtitle={scenario.title}
+                colorClass="bg-cyber-lime"
+                borderColorClass="border-cyber-lime/20"
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-12">
+                    <MentorMessage message={message} type={result === 'success' ? 'success' : (result ? 'warning' : 'info')} />
+                </div>
+
+                <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left: Input & Controls */}
+                    <div className="space-y-6">
+                        <div className="bento-card bg-white/5 space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Buyer Brief</h3>
+                                <div className="px-3 py-1 bg-white/5 rounded-full text-[10px] text-gray-400 uppercase font-black flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-cyber-lime rounded-full animate-pulse"></span>
+                                    Negotiation Live
+                                </div>
+                            </div>
+                            <p className="text-xl font-bold italic text-white leading-tight">
+                                "{scenario.description}"
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-midnight rounded-2xl border border-white/5">
+                                    <span className="text-[10px] text-gray-500 font-black uppercase">Initial Offer</span>
+                                    <p className="text-2xl font-black text-white">${scenario.offerPrice.toFixed(2)}</p>
+                                </div>
+                                <div className="p-4 bg-midnight rounded-2xl border border-white/5">
+                                    <span className="text-[10px] text-gray-500 font-black uppercase">Volume</span>
+                                    <p className="text-2xl font-black text-white">{scenario.units} units</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {gameState !== 'result' && (
+                            <div className="bento-card border-none bg-electric-purple/10 text-white p-8 neo-brutal border-midnight space-y-8">
+                                <div className="flex justify-between items-end">
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60">Your Counter Offer</h3>
+                                    <span className="text-6xl font-black text-white italic leading-none">${negotiationPrice.toFixed(2)}</span>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => handleNegotiate(0.05)}
+                                        className="flex-1 py-6 bg-white text-midnight font-black text-xl rounded-xl neo-brutal border-midnight hover:-translate-y-1 transition-all"
+                                    >
+                                        +$0.05
+                                    </button>
+                                    <button
+                                        onClick={() => handleNegotiate(-0.05)}
+                                        className="flex-1 py-6 bg-white/10 text-white font-black text-xl rounded-xl border-2 border-white/20 hover:bg-white/20"
+                                    >
+                                        -$0.05
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={handleCommit}
+                                    className="w-full py-6 bg-cyber-lime text-midnight font-black text-2xl uppercase tracking-tighter italic rounded-[2rem] border-4 border-midnight shadow-[0_0_30px_rgba(173,255,47,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4"
+                                >
+                                    <Handshake size={32} />
+                                    COMMIT STRATEGY
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right: Visualization & Feedback */}
+                    <div className="space-y-6">
+                        <div className="bento-card h-full flex flex-col justify-between p-10 bg-white/5 border-white/10">
+                            <div className="space-y-12">
+                                {/* Patience Bar */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-gray-500">Buyer Patience</span>
+                                        <span className={patience > 30 ? 'text-cyber-lime' : 'text-hot-pink'}>{Math.round(patience)}%</span>
+                                    </div>
+                                    <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                                        <motion.div
+                                            animate={{ width: `${patience}%`, backgroundColor: patience > 70 ? '#ADFF2F' : patience > 30 ? '#ADFF2F' : '#FF69B4' }}
+                                            className="h-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Contribution Visualizer */}
+                                <div className="space-y-12 pt-8 border-t border-white/5">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between text-[10px] font-black uppercase text-gray-500">
+                                            <span>OFFER PRICE</span>
+                                            <span className="text-white">${negotiationPrice.toFixed(2)}</span>
+                                        </div>
+                                        <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                                            <motion.div
+                                                animate={{ width: '100%' }}
+                                                className="h-full bg-electric-purple"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 text-hot-pink">
+                                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest font-bold">
+                                            <span>VARIABLE COST (FLOOR)</span>
+                                            <span>-${scenario.variableCost.toFixed(2)}</span>
+                                        </div>
+                                        <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                                            <motion.div
+                                                animate={{ width: `${(scenario.variableCost / negotiationPrice) * 100}%` }}
+                                                className="h-full bg-hot-pink/50"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-12 pt-12 border-t border-white/5">
+                                {negotiationPrice > scenario.variableCost ? (
+                                    <div className="p-8 bg-cyber-lime/10 rounded-[2rem] border border-cyber-lime/30 text-center">
+                                        <span className="text-[10px] font-black text-cyber-lime uppercase tracking-widest block mb-2">Item Contribution</span>
+                                        <p className="text-5xl font-black text-white italic">+${(negotiationPrice - scenario.variableCost).toFixed(2)}</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-8 bg-hot-pink/10 rounded-[2rem] border border-hot-pink/30 text-center">
+                                        <span className="text-[10px] font-black text-hot-pink uppercase tracking-widest block mb-2">NEGATIVE MARGIN</span>
+                                        <p className="text-5xl font-black text-white italic">-${Math.abs(negotiationPrice - scenario.variableCost).toFixed(2)}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="lg:col-span-5 space-y-8">
-                <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="neo-brutal bg-white p-8 space-y-6"
-                >
-                    <div className="flex justify-between items-center">
-                        <span className="text-midnight font-black uppercase text-xs tracking-[0.2em]">Briefing</span>
-                        <Info className="text-midnight" size={20} />
-                    </div>
-                    <p className="text-midnight font-bold leading-tight uppercase italic text-lg">{scenario.description}</p>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-midnight rounded-2xl flex flex-col items-center">
-                            <span className="text-[10px] text-gray-500 font-bold uppercase mb-1">Normal</span>
-                            <span className="text-xl text-white font-black">${scenario.normalPrice.toFixed(2)}</span>
-                        </div>
-                        <div className="p-4 bg-electric-purple rounded-2xl flex flex-col items-center ring-4 ring-white shadow-xl">
-                            <span className="text-[10px] text-white/50 font-bold uppercase mb-1">The Offer</span>
-                            <span className="text-xl text-white font-black animate-pulse">${scenario.offerPrice.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {!decision && (
-                    <div className="flex flex-col gap-4">
-                        <button
-                            onClick={() => handleDecision(true)}
-                            className="neo-button bg-electric-purple text-white border-white py-6 text-xl"
+                <AnimatePresence>
+                    {gameState === 'result' && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="lg:col-span-12"
                         >
-                            TAKE THE BAG ✅
-                        </button>
-                        <button
-                            onClick={() => handleDecision(false)}
-                            className="neo-button bg-hot-pink text-white border-white py-4 text-sm opacity-50 hover:opacity-100"
-                        >
-                            PASS ON IT ❌
-                        </button>
-                    </div>
-                )}
+                            <div className={`bento-card border-none neo-brutal p-12 flex flex-col items-center gap-8 ${result === 'success' ? 'bg-cyber-lime text-midnight border-midnight' : 'bg-hot-pink text-white border-white'
+                                }`}>
+                                <h3 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-none">
+                                    {result === 'success' ? 'DEAL SECURED' : result === 'walked' ? 'CLIENT WALKED' : 'MARGIN LOSS'}
+                                </h3>
+                                <p className="text-xl md:text-3xl font-bold text-center max-w-2xl uppercase leading-tight italic">
+                                    "{message}"
+                                </p>
+                                <button
+                                    onClick={nextScenario}
+                                    className={`px-12 py-8 rounded-full font-black text-2xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border-4 ${result === 'success' ? 'bg-midnight text-white border-white' : 'bg-white text-midnight border-midnight'
+                                        }`}
+                                >
+                                    CONTINUE MISSION →
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-
-            <div className="lg:col-span-7">
-                <div className="bento-card h-full flex flex-col">
-                    <div className="flex justify-between items-center mb-12">
-                        <h3 className="text-white">MARGIN ANALYSER</h3>
-                        <div className="px-4 py-1 bg-cyber-lime/20 rounded-full text-cyber-lime text-[10px] font-bold">LIVE</div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-center space-y-12">
-                        <div className="space-y-4">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-500">
-                                <span>Revenue Flow</span>
-                                <span className="text-white">${scenario.offerPrice.toFixed(2)} / Unit</span>
-                            </div>
-                            <div className="h-6 bg-white/5 rounded-full overflow-hidden neo-brutal border-none ring-1 ring-white/10">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: '100%' }}
-                                    className="h-full bg-electric-purple"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-500">
-                                <span>Variable Friction</span>
-                                <span className="text-hot-pink">-${scenario.variableCost.toFixed(2)} / Unit</span>
-                            </div>
-                            <div className="h-6 bg-white/5 rounded-full overflow-hidden neo-brutal border-none ring-1 ring-white/10">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(scenario.variableCost / scenario.offerPrice) * 100}%` }}
-                                    className="h-full bg-hot-pink"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="pt-8 border-t border-white/10 flex justify-between items-end">
-                            <div>
-                                <h4 className="text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest">Net Contribution</h4>
-                                <p className="text-4xl font-black text-cyber-lime italic">${(scenario.offerPrice - scenario.variableCost).toFixed(2)}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-cyber-lime uppercase animate-pulse italic">POSITIVE MARGIN</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {showExplanation && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="lg:col-span-12 bento-card border-cyber-lime/40 bg-cyber-lime/5"
-                >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                        <div className="space-y-4">
-                            <p className="text-xs font-black text-hot-pink uppercase tracking-[0.3em]">RIVAL:</p>
-                            <p className="text-xl text-gray-500 font-light italic leading-tight">
-                                "You’re selling below total cost. You're losing money on every cup if you look at the rent!"
-                            </p>
-                        </div>
-                        <div className="space-y-4">
-                            <p className="text-xs font-black text-cyber-lime uppercase tracking-[0.3em]">YOU:</p>
-                            <p className="text-xl text-white font-bold leading-tight">
-                                "The rent is already paid. Every $0.01 above variable cost is one step closer to breaking even. Basic math, stay mad."
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-12 flex justify-center">
-                        <button
-                            onClick={onComplete}
-                            className="neo-button bg-white text-midnight border-midnight"
-                        >
-                            NEXT VIBE: THE DUEL →
-                        </button>
-                    </div>
-                </motion.div>
-            )}
         </div>
     )
 }
+

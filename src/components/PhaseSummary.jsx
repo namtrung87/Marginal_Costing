@@ -93,6 +93,15 @@ export function PhaseSummary({ level, onClose }) {
                         Next Mission <ArrowRight size={16} />
                     </button>
                 </div>
+
+                <div className="mt-6 pt-6 border-t border-white/10">
+                    <button
+                        onClick={() => window.open('https://discord.gg/financial-mastery', '_blank')}
+                        className="text-gray-400 hover:text-white text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 w-full transition-colors"
+                    >
+                        Need the solution? <span className="text-electric-purple underline">Join the Audit HQ (Discord)</span>
+                    </button>
+                </div>
             </motion.div>
         </motion.div>
     )

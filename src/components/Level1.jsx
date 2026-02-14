@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { useGameStore } from '../store/useGameStore'
-import { motion } from 'framer-motion'
-import { Info, CheckCircle, Smartphone, HelpCircle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Info, CheckCircle, Smartphone, HelpCircle, Activity } from 'lucide-react'
+import { LevelHeader } from './ui/LevelHeader'
+import { MentorMessage } from './ui/MentorMessage'
 
 const COST_ITEMS = [
     {
@@ -98,7 +100,7 @@ const SCENARIOS = [
 ]
 
 export function Level1({ onComplete }) {
-    const { recordMistake } = useGameStore()
+    const { recordMistake, health } = useGameStore()
     const [currentScenario, setCurrentScenario] = useState(0)
     const [buckets, setBuckets] = useState({
         fixed: [],
@@ -111,6 +113,7 @@ export function Level1({ onComplete }) {
     const [message, setMessage] = useState(scenario.message)
     const [completed, setCompleted] = useState(false)
     const [wrongAttempt, setWrongAttempt] = useState(null)
+    const [impact, setImpact] = useState(null) // { amount: -500, x, y }
 
     const handleDrop = (e, bucketId) => {
         e.preventDefault()
@@ -149,106 +152,153 @@ export function Level1({ onComplete }) {
                 }
             }
         } else {
-            recordMistake()
-            setWrongAttempt(itemId)
             const hint = bucketId === 'fixed'
-                ? 'Fixed costs don\'t change with volume. Check the description again.'
+                ? 'These costs stay the same regardless of sales.'
                 : bucketId === 'variable'
-                    ? 'Variable costs change per unit. Is this cost strictly per cup?'
+                    ? 'These costs change with every cup you sell.'
                     : bucketId === 'step-fixed'
-                        ? 'Step-fixed costs jump at thresholds (e.g., every 50 units).'
-                        : 'Semi-variable costs have a fixed base PLUS a variable rate.'
+                        ? 'These costs jump up in steps as you grow.'
+                        : 'These are fixed + variable mixed together.'
+
             setMessage(`❌ Not quite! ${hint}`)
+            recordMistake('classification', 10) // 10% damage
+            setWrongAttempt(itemId)
+
+            // Trigger Visual Impact
+            setImpact({ amount: '-10% INTEGRITY', id: Date.now() })
+            setTimeout(() => setImpact(null), 1000)
         }
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Sidebar Info + Cost Cards */}
-            <div className="lg:col-span-5 space-y-6">
-                <div className="bento-card bg-electric-purple/10 border-electric-purple/20">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-3 bg-electric-purple rounded-2xl"><Smartphone /></div>
-                        <h3 className="text-xl font-black">THE BRIEF</h3>
-                    </div>
-                    <p className="text-sm text-gray-300 leading-relaxed">
-                        {message}
-                    </p>
-                    <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                            <HelpCircle size={12} />
-                            Remaining: {items.length} / {COST_ITEMS.length} costs
-                        </p>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    {items.map(item => (
-                        <motion.div
-                            key={item.id}
-                            layoutId={item.id}
-                            draggable
-                            onDragStart={(e) => e.dataTransfer.setData('itemId', item.id)}
-                            className={`neo-brutal bg-white p-5 cursor-grab group active:cursor-grabbing transition-all hover:translate-x-1 hover:-translate-y-1 ${wrongAttempt === item.id ? 'ring-2 ring-hot-pink' : ''
-                                }`}
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <span className="text-midnight font-black text-lg italic tracking-tighter">{item.name}</span>
-                                <span className="bg-cyber-lime text-midnight px-3 py-1 text-[10px] font-bold rounded-full flex-shrink-0">{item.amount}</span>
-                            </div>
-                            <p className="text-midnight/70 text-xs leading-relaxed">
-                                {item.description}
-                            </p>
-                        </motion.div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Buckets */}
-            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(BUCKET_INFO).map(([bucketId, info]) => (
-                    <div
-                        key={bucketId}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => handleDrop(e, bucketId)}
-                        className={`bento-card border-2 border-dashed ${info.color} ${info.bg} min-h-[220px] relative overflow-hidden group transition-all`}
+        <div className="space-y-8 relative">
+            <AnimatePresence>
+                {impact && (
+                    <motion.div
+                        initial={{ opacity: 1, y: 0, scale: 0.5 }}
+                        animate={{ opacity: 0, y: -50, scale: 1.5 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
                     >
-                        <h4 className={`${info.labelColor} uppercase text-[11px] tracking-[0.3em] font-black mb-2`}>{info.label}</h4>
-                        <p className="text-gray-500 text-[10px] leading-relaxed mb-6 border-b border-white/5 pb-4">
-                            {info.definition}
-                        </p>
+                        <span className="text-4xl font-black text-red-500 bg-midnight/80 px-4 py-2 rounded-xl border-2 border-red-500 shadow-[0_0_30px_rgba(255,0,0,0.5)]">
+                            {impact.amount}
+                        </span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        <div className="space-y-3">
-                            {buckets[bucketId].map(item => (
+            <LevelHeader
+                icon={Activity}
+                title="Mission 1: Classification Protocol"
+                subtitle={scenario.title}
+                colorClass="bg-electric-purple"
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Sidebar Info + Cost Cards */}
+                <div className="lg:col-span-5 space-y-6">
+                    <MentorMessage message={message} type={message.includes('✅') ? 'success' : message.includes('❌') ? 'warning' : 'info'} />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bento-card bg-white/5 border-white/10 p-4">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Audit Integrity</p>
+                            <div className="h-2 bg-white/5 rounded-full overflow-hidden mt-2">
                                 <motion.div
-                                    initial={{ scale: 0.8, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    key={item.id}
-                                    className="bg-cyber-lime text-midnight p-4 font-black uppercase tracking-tighter italic border-2 border-midnight shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2"
-                                >
-                                    <CheckCircle size={16} className="flex-shrink-0" />
-                                    {item.name}
-                                </motion.div>
-                            ))}
+                                    className={`h-full ${health > 50 ? 'bg-cyber-lime' : 'bg-hot-pink'}`}
+                                    animate={{ width: `${health}%` }}
+                                />
+                            </div>
+                            <p className={`text-right text-xs font-black mt-1 ${health > 50 ? 'text-cyber-lime' : 'text-hot-pink'}`}>{health}%</p>
+                        </div>
+                        <div className="bento-card bg-white/5 border-white/10 p-4">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Pending Items</p>
+                            <p className="text-2xl font-black text-white mt-1">{items.length}</p>
                         </div>
                     </div>
-                ))}
-            </div>
 
-            {completed && (
-                <motion.div
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50"
-                >
-                    <button
-                        onClick={onComplete}
-                        className="neo-button bg-cyber-lime text-midnight border-white text-xl"
+                    <div className="space-y-3 pt-4 border-t border-white/5">
+                        <AnimatePresence>
+                            {items.map(item => (
+                                <motion.div
+                                    key={item.id}
+                                    layout
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    draggable
+                                    onDragStart={(e) => e.dataTransfer.setData('itemId', item.id)}
+                                    className={`neo-brutal bg-white p-5 cursor-grab group active:cursor-grabbing transition-all hover:translate-x-1 hover:-translate-y-1 ${wrongAttempt === item.id ? 'ring-4 ring-hot-pink border-hot-pink' : 'border-midnight'
+                                        }`}
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-midnight font-black text-lg italic tracking-tighter">{item.name}</span>
+                                        <span className="bg-cyber-lime text-midnight px-3 py-1 text-[10px] font-bold rounded-full flex-shrink-0">{item.amount}</span>
+                                    </div>
+                                    <p className="text-midnight/70 text-xs leading-relaxed">
+                                        {item.description}
+                                    </p>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                {/* Buckets */}
+                <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {Object.entries(BUCKET_INFO).map(([bucketId, info]) => (
+                        <div
+                            key={bucketId}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleDrop(e, bucketId)}
+                            className={`bento-card border-2 border-dashed ${info.color} ${info.bg} min-h-[250px] relative overflow-hidden group transition-all hover:bg-white/5`}
+                        >
+                            <h4 className={`${info.labelColor} uppercase text-[11px] tracking-[0.3em] font-black mb-2`}>{info.label}</h4>
+                            <p className="text-gray-500 text-[10px] leading-relaxed mb-6 border-b border-white/5 pb-4">
+                                {info.definition}
+                            </p>
+
+                            <div className="space-y-3">
+                                <AnimatePresence>
+                                    {buckets[bucketId].map(item => (
+                                        <motion.div
+                                            initial={{ scale: 0.8, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            key={item.id}
+                                            className="bg-midnight text-white p-4 font-black uppercase tracking-tighter italic border-2 border-white/20 flex items-center justify-between gap-2"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle size={16} className="text-cyber-lime" />
+                                                {item.name}
+                                            </div>
+                                            <span className="text-[10px] opacity-40">{item.amount}</span>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {completed && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 px-12 py-8 bg-midnight/90 backdrop-blur-xl border-4 border-cyber-lime neo-brutal shadow-[0_0_50px_rgba(173,255,47,0.4)] flex flex-col items-center gap-6"
                     >
-                        NEXT PHASE →
-                    </button>
-                </motion.div>
-            )}
+                        <h3 className="text-3xl font-black italic text-cyber-lime uppercase tracking-widest">PHASE COMPLETE</h3>
+                        <button
+                            onClick={() => {
+                                const { addScore } = useGameStore.getState()
+                                addScore(500)
+                                onComplete()
+                            }}
+                            className="neo-button bg-cyber-lime text-midnight border-white text-2xl font-black px-12"
+                        >
+                            CONTINUE MISSION →
+                        </button>
+                    </motion.div>
+                )}
+            </div>
         </div>
     )
 }
